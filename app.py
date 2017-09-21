@@ -1,0 +1,77 @@
+"""
+Example implementation of asyncio with Google's custom asynchronous PubSub client.
+"""
+import asyncio
+import os
+import datetime
+import functools
+from google.cloud import pubsub
+from google.gax.errors import RetryError
+from grpc import StatusCode
+
+PROJECT = os.environ['GOOGLE_CLOUD_PROJECT']
+TOPIC = os.environ['TOPIC']
+SUBSCRIPTION = TOPIC + ".subscription"
+
+
+async def message_producer(publisher):
+    """ Publish messages which consist of the current datetime """
+    while True:
+        publisher(bytes(str(datetime.datetime.now()), "utf8"))
+        await asyncio.sleep(0.1)
+
+
+async def print_message(message):
+    """ Print a message and ack it """
+    await asyncio.sleep(0.1)
+    print(message.data.decode())
+    message.ack()
+
+
+def main():
+    """ Main program """
+    loop = asyncio.get_event_loop()
+
+    topic = "projects/{project_id}/topics/{topic}".format(
+        project_id=PROJECT, topic=TOPIC)
+    subscription_name = "projects/{project_id}/subscriptions/{subscription}".format(
+        project_id=PROJECT, subscription=SUBSCRIPTION)
+
+    publisher, subscription = make_publisher_subscription(
+        topic, subscription_name)
+
+    def create_print_message_task(message):
+        """ Callback handler for the subscription; schedule a task on the event loop """
+        loop.create_task(print_message(message))
+
+    subscription.open(create_print_message_task)
+
+    # Produce some messages to consume
+    loop.create_task(message_producer(
+        functools.partial(publisher.publish, topic)))
+
+    loop.run_forever()
+
+
+def make_publisher_subscription(topic, subscription_name):
+    """ Make a publisher and subscriber client, and create the necessary resources """
+    publisher = pubsub.PublisherClient()
+    try:
+        publisher.create_topic(topic)
+    except RetryError as exc:
+        if exc.cause.code() is not StatusCode.ALREADY_EXISTS:
+            raise
+
+    subscriber = pubsub.SubscriberClient()
+    try:
+        subscription = subscriber.create_subscription(subscription_name, topic)
+    except RetryError as exc:
+        if exc.cause.code() is not StatusCode.ALREADY_EXISTS:
+            raise
+        subscription = subscriber.subscribe(subscription_name)
+
+    return publisher, subscription
+
+
+if __name__ == "__main__":
+    main()
