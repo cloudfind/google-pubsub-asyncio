@@ -2,9 +2,10 @@
 Example implementation of asyncio with Google's custom asynchronous PubSub client.
 """
 import asyncio
-import os
 import datetime
 import functools
+import os
+
 from google.cloud import pubsub
 from google.gax.errors import RetryError
 from grpc import StatusCode
