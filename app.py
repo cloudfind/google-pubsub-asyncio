@@ -22,7 +22,7 @@ async def message_producer(publisher):
 
 
 async def print_message(message):
-    """ Print a message and ack it """
+    """ Do something asynchronous, print the message and ack it """
     await asyncio.sleep(0.1)
     print(message.data.decode())
     message.ack()
