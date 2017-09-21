@@ -65,11 +65,11 @@ def make_publisher_subscription(topic, subscription_name):
 
     subscriber = pubsub.SubscriberClient()
     try:
-        subscription = subscriber.create_subscription(subscription_name, topic)
+        subscriber.create_subscription(subscription_name, topic)
     except RetryError as exc:
         if exc.cause.code() is not StatusCode.ALREADY_EXISTS:
             raise
-        subscription = subscriber.subscribe(subscription_name)
+    subscription = subscriber.subscribe(subscription_name)
 
     return publisher, subscription
 
